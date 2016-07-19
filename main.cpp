@@ -10,7 +10,7 @@ using namespace cv;
 
 int main(int argc, char** argv )
 {
-	Mat filt, filt2, original;
+    Mat filt, filt2, original;
 
     if ( argc != 2 )
     {
@@ -26,23 +26,23 @@ int main(int argc, char** argv )
         printf("No image data \n");
         return -1;
     }
-	image.copyTo(original);
+    image.copyTo(original);
 
-	image = add_salt_pepper(image, 15, 235);
-	image.copyTo(filt);
-	image.copyTo(filt2);
+    image = add_salt_pepper(image, 15, 235);
+    image.copyTo(filt);
+    image.copyTo(filt2);
 
-	aswm_filter_fix(filt);
-	aswm_filter(filt2);
+    aswm_filter_fix(filt);
+    aswm_filter(filt2);
 
-	std::cout << "Fix PSNR: " << getPSNR(original, filt) << std::endl;
-	std::cout << "PSNR: " << getPSNR(original, filt2) << std::endl;
+    std::cout << "Fix PSNR: " << getPSNR(original, filt) << std::endl;
+    std::cout << "PSNR: " << getPSNR(original, filt2) << std::endl;
 
 
-	imshow("img", image);
-	imshow("filtered", filt);
+    imshow("img", image);
+    imshow("filtered", filt);
 
-	cvWaitKey(0);
+    cvWaitKey(0);
 
     return 0;
 }
