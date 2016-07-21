@@ -37,38 +37,41 @@ void neon_median_filter(cv::Mat image)
 			q7 = vld1q_u8(&src[image.cols * (j + 1) + i]);
 			q8 = vld1q_u8(&src[image.cols * (j + 1) + i + 1]);
 
-			//sort network
-			//http://dspace.kpfu.ru/xmlui/bitstream/handle/net/20359/09_104_001110.pdf
-			vminmax_u8(q0, q1);
-			vminmax_u8(q2, q3);
-			vminmax_u8(q4, q5);
-			vminmax_u8(q6, q7);
+			/* Paeth's 9-element sorting network */
+			vminmax_u8(q0, q3);
+			vminmax_u8(q1, q4);
 
-			//step 2
+			vminmax_u8(q0, q1);
+			vminmax_u8(q2, q5);
+
 			vminmax_u8(q0, q2);
-			vminmax_u8(q4, q6);
+			vminmax_u8(q4, q5);
+
+			vminmax_u8(q1, q2);
+			vminmax_u8(q3, q5);
+
+			vminmax_u8(q3, q4);
 
 			vminmax_u8(q1, q3);
-			vminmax_u8(q5, q7);
 
-			//step 3
-			vminmax_u8(q1, q2);
-			vminmax_u8(q5, q6);
+			vminmax_u8(q1, q6);
 
-			//step4
-			vminmax_u8(q0, q4);
-			vminmax_u8(q1, q5);
+			vminmax_u8(q4, q6);
+
 			vminmax_u8(q2, q6);
-			vminmax_u8(q3, q7);
+
+			vminmax_u8(q2, q3);
+			vminmax_u8(q4, q7);
 
 			vminmax_u8(q2, q4);
-			vminmax_u8(q3, q5);
-			vminmax_u8(q1, q5);
 
-			vminmax_u8(q1, q2);
+			vminmax_u8(q3, q7);
+
+			vminmax_u8(q4, q8);
+
+			vminmax_u8(q3, q8);
+
 			vminmax_u8(q3, q4);
-			vminmax_u8(q5, q6);
-
 
 			//q4 now - median values
 			vst1q_u8(&src[image.cols * j + i], q4);
