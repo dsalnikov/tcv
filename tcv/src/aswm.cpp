@@ -280,6 +280,8 @@ int aswm_mod2_filter(cv::Mat image, cv::Mat prev_frame, cv::Mat prev_frame_res)
 #define frac_mul(a, b) (((long long)a * b) >> 16)
 #define frac_div(a, b) ((((unsigned long long)a << 15) / b) << 1)
 
+#define ASWM_USE_DOUBLE_PRECISION 
+
 inline fix16_t get_weighted_mean_fix(fix16_t weights[], uchar window[], uchar size)
 {
 	register fix16_t acc = 0;
@@ -291,8 +293,11 @@ inline fix16_t get_weighted_mean_fix(fix16_t weights[], uchar window[], uchar si
 	while(size--)
 	{
 		fix16_t w = *(p_weights++);
-
+#ifdef ASWM_USE_DOUBLE_PRECISION
 		wacc = wacc + frac_mul(w, *(p_window++) << 16);
+#else
+		wacc = wacc + frac_mul(w, *(p_window++));
+#endif
 		acc =  acc + w;
 	}
 
@@ -310,8 +315,13 @@ inline fix16_t get_deviation_fix(fix16_t weights[], uchar window[], fix16_t mean
 	while(size--)
 	{
 		fix16_t w = *(p_weights++);
+#ifdef ASWM_USE_DOUBLE_PRECISION
 		fix16_t diff = (*(p_window++) << 16) - mean;
+#else
+		fix16_t diff = *(p_window++) - mean;
+#endif
 		fix16_t ddiff = frac_mul(diff, diff);
+
 		wacc = wacc + frac_mul(w, ddiff);
 		acc =  acc + w;
 	}
@@ -353,12 +363,13 @@ void aswm_filter_fix(cv::Mat image)
 				//estimate the weights
 				for (int l = 0; l < 9; l++)
 				{
-#if 1
+#ifdef ASWM_USE_DOUBLE_PRECISION
+
 					fix16_t b = fix16_abs((window[l] << 16) - mean) + F16(0.1);
-					weights[l] = (((unsigned long long)F16(1.0) << 15) / b) << 1;
 #else
-					weights[l] = fix16_div(F16(1.0), (fix16_abs(fix16_sub(window[l] << 16, mean)) + F16(0.1)));
+					fix16_t b = fix16_abs(window[l] - mean) + F16(0.1);
 #endif
+					weights[l] = (((unsigned long long)F16(1.0) << 15) / b) << 1;
 				}
 
 				fix16_t new_mean = get_weighted_mean_fix(weights, window, 9);
@@ -369,8 +380,11 @@ void aswm_filter_fix(cv::Mat image)
 			}
 
 			fix16_t deviation = get_deviation_fix(weights, window, mean, 9);
-
+#ifdef ASWM_USE_DOUBLE_PRECISION
 			if (fix16_abs((window[4] << 16) - mean) > frac_mul(deviation, F16(6.5)))
+#else
+			if (fix16_abs(window[4] - mean) > frac_mul(deviation, F16(6.5)))
+#endif
 			{
 				qsort(window, 9, sizeof(uchar), compare_uchar);
 				p_img[image.cols * j + i] = window[4];
