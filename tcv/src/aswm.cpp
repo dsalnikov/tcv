@@ -37,6 +37,11 @@ int aswm_filter(cv::Mat image)
 	uchar *p_img = (uchar *)(image.data);
 	int total_iterations = 0;
 
+	static uint64 max_time = 0;
+	static uint64 min_time = 0xFFFFFFFF;
+	static uint64 mean_time = 0;
+	static uint64 mean_num = 1;
+
 	uint64 start = GetTimeMs64();
 
 	for (int i = 0; i < image.cols; i++)
@@ -92,7 +97,15 @@ int aswm_filter(cv::Mat image)
 	cout << "aswm time: \t" << end - start << endl;
 	cout << "aswm iterations: \t" << total_iterations << endl;
 
+	mean_time += end - start;
 
+	if (max_time < end - start)
+		max_time = end - start;
+
+	if (min_time > end - start)
+		min_time = end - start;
+
+	cout << "min: \t" << min_time << "max: \t" << max_time << "mean: \t" << mean_time / mean_num++ << endl;
 	return total_iterations;
 }
 
@@ -280,7 +293,7 @@ int aswm_mod2_filter(cv::Mat image, cv::Mat prev_frame, cv::Mat prev_frame_res)
 #define frac_mul(a, b) (((long long)a * b) >> 16)
 #define frac_div(a, b) ((((unsigned long long)a << 15) / b) << 1)
 
-#define ASWM_USE_DOUBLE_PRECISION 
+//#define ASWM_USE_DOUBLE_PRECISION 
 
 inline fix16_t get_weighted_mean_fix(fix16_t weights[], uchar window[], uchar size)
 {
@@ -332,6 +345,11 @@ inline fix16_t get_deviation_fix(fix16_t weights[], uchar window[], fix16_t mean
 void aswm_filter_fix(cv::Mat image)
 {
 	uchar *p_img = (uchar *)(image.data);
+
+	static uint64 max_time = 0;
+	static uint64 min_time = 0xFFFFFFFF;
+	static uint64 mean_time = 0;
+	static uint64 mean_num = 1;
 
 	uint64 start = GetTimeMs64();
 
@@ -406,6 +424,123 @@ void aswm_filter_fix(cv::Mat image)
 	}
 
 	uint64 end = GetTimeMs64();
+	cout << "aswm fix time: \t" << end - start << endl;
 
-	cout << "aswm fixed mod time: \t" << end - start << endl;
+	mean_time += end - start;
+
+	if (max_time < end - start)
+		max_time = end - start;
+
+	if (min_time > end - start)
+		min_time = end - start;
+
+	cout << "min: \t" << min_time << "max: \t" << max_time << "mean: \t" << mean_time / mean_num++ << endl;
+	
+}
+
+void aswm_filter_mod2_fix(cv::Mat image, cv::Mat prev_frame, cv::Mat prev_frame_res)
+{
+	uchar *p_img = (uchar *)(image.data);
+
+	static uint64 max_time = 0;
+	static uint64 min_time = 0xFFFFFFFF;
+	static uint64 mean_time = 0;
+	static uint64 mean_num = 1;
+
+	uint64 start = GetTimeMs64();
+
+	cv::Mat diff_frame = prev_frame - image;
+	uchar *p_diff_frame = (uchar*)(diff_frame.data);
+
+
+	for (int i = 0; i < image.cols; i++)
+	{
+		fix16_t weights[9] = { F16(1.0), F16(1.0), F16(1.0), F16(1.0), F16(1.0), F16(1.0), F16(1.0), F16(1.0), F16(1.0) };
+		int w_len = 0;
+
+		for (int j = 0; j < image.rows; j++)
+		{
+			uchar window[9];
+
+			if (p_diff_frame[image.cols * j + i] == 0)
+			{
+				p_img[image.cols * j + i] = prev_frame_res.data[image.cols * j + i];
+				continue;
+			}
+
+
+			window[0] = p_img[image.cols * (j - 1) + i - 1];
+			window[1] = p_img[image.cols * (j - 1) + i];
+			window[2] = p_img[image.cols * (j - 1) + i + 1];
+
+			window[3] = p_img[image.cols * j + i - 1];
+			window[4] = p_img[image.cols * j + i]; //center
+			window[5] = p_img[image.cols * j + i + 1];
+
+			window[6] = p_img[image.cols * (j + 1) + i - 1];
+			window[7] = p_img[image.cols * (j + 1) + i];
+			window[8] = p_img[image.cols * (j + 1) + i + 1];
+
+			fix16_t mean = get_weighted_mean_fix(weights, window, 9);
+
+			while (true)
+			{
+				//estimate the weights
+				for (int l = 0; l < 9; l++)
+				{
+#ifdef ASWM_USE_DOUBLE_PRECISION
+
+					fix16_t b = fix16_abs((window[l] << 16) - mean) + F16(0.1);
+#else
+					fix16_t b = fix16_abs(window[l] - mean) + F16(0.1);
+#endif
+					weights[l] = (((unsigned long long)F16(1.0) << 15) / b) << 1;
+				}
+
+				fix16_t new_mean = get_weighted_mean_fix(weights, window, 9);
+				fix16_t diff = fix16_abs(new_mean - mean);
+				mean = new_mean;
+				if (diff < F16(0.1))
+					break;
+			}
+
+			fix16_t deviation = get_deviation_fix(weights, window, mean, 9);
+#ifdef ASWM_USE_DOUBLE_PRECISION
+			if (fix16_abs((window[4] << 16) - mean) > frac_mul(deviation, F16(6.5)))
+#else
+			if (fix16_abs(window[4] - mean) > frac_mul(deviation, F16(6.5)))
+#endif
+			{
+				qsort(window, 9, sizeof(uchar), compare_uchar);
+				p_img[image.cols * j + i] = window[4];
+			}
+
+			weights[0] = weights[3];
+			weights[1] = weights[4];
+			weights[2] = weights[5];
+			weights[3] = weights[6];
+			weights[4] = weights[7];
+			weights[5] = weights[8];
+
+			weights[6] = F16(1.0);
+			weights[7] = F16(1.0);
+			weights[8] = F16(1.0);
+
+			w_len = 0;
+		}
+	}
+
+	uint64 end = GetTimeMs64();
+	cout << "aswm fix time: \t" << end - start << endl;
+
+	mean_time += end - start;
+
+	if (max_time < end - start)
+		max_time = end - start;
+
+	if (min_time > end - start)
+		min_time = end - start;
+
+	cout << "min: \t" << min_time << "max: \t" << max_time << "mean: \t" << mean_time / mean_num++ << endl;
+
 }

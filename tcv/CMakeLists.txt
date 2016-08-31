@@ -9,8 +9,9 @@ set(SOURCE
     src/GetTimeMs64.cpp
     src/fix16.c
     src/fix16_sqrt.c
-    src/neon.c
-    src/neon-median-filter.c
+    src/neon.cpp
+    src/neon-median-filter.cpp
+    src/sdm.cpp
 ) 
 include_directories(inc)
 

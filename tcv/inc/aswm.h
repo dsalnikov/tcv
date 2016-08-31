@@ -14,5 +14,6 @@ int compare_uchar(const void * a, const void * b);
 
 
 void aswm_filter_fix(cv::Mat image);
+void aswm_filter_mod2_fix(cv::Mat image, cv::Mat prev_frame, cv::Mat prev_frame_res);
 
 #endif // !__ASWM_H__
