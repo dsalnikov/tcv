@@ -18,9 +18,9 @@ void neon_median_filter(cv::Mat image)
 
 	uint8_t *src = (uint8_t *)(image.data);
 
-	for (i = 0; i < image.cols; i += vector_size)
+	for (i = 1; i < image.cols; i += vector_size)
 	{
-		for (j = 0; j < image.rows; j++)
+		for (j = 1; j < image.rows; j++)
 		{
 			uint8x16_t q0, q1, q2, q3, q4, q5, q6, q7, q8;
 
