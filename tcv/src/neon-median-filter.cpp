@@ -12,9 +12,56 @@
     } while (0)
 
 
+uint64 GetTimeMs64();
+using namespace std;
+
+#include <Windows.h>
+
+void our_filter(cv::Mat image)
+{
+    int i, j;
+
+    LARGE_INTEGER t1, t2;           // ticks
+
+    QueryPerformanceCounter(&t1);
+
+    uint8_t *src = (uint8_t *)(image.data);
+
+    for (i = 1; i < image.cols; i += 1)
+    {
+        for (j = 1; j < image.rows; j++)
+        {
+            uchar window[9];
+
+            window[0] = src[image.cols * (j - 1) + i - 1];
+            window[1] = src[image.cols * (j - 1) + i];
+            window[2] = src[image.cols * (j - 1) + i + 1];
+            window[3] = src[image.cols * j + i - 1];
+            window[4] = src[image.cols * j + i];
+            window[5] = src[image.cols * j + i + 1];
+            window[6] = src[image.cols * (j + 1) + i - 1];
+            window[7] = src[image.cols * (j + 1) + i];
+            window[8] = src[image.cols * (j + 1) + i + 1];
+
+            sort(window, window + 8);
+
+            if (abs(window[4] - src[image.cols * j + i]) > 30)
+                src[image.cols * j + i] = window[4];
+        }
+    }
+
+    QueryPerformanceCounter(&t2);
+    cout << "our time: \t" << t2.QuadPart - t1.QuadPart << endl;
+
+}
+
 void neon_median_filter(cv::Mat image)
 {
 	int i, j;
+
+    LARGE_INTEGER t1, t2;           // ticks
+
+    QueryPerformanceCounter(&t1);
 
 	uint8_t *src = (uint8_t *)(image.data);
 
@@ -22,7 +69,7 @@ void neon_median_filter(cv::Mat image)
 	{
 		for (j = 1; j < image.rows; j++)
 		{
-			uint8x16_t q0, q1, q2, q3, q4, q5, q6, q7, q8;
+			uint8x16_t q0, q1, q2, q3, q4, q5, q6, q7, q8, q4_prev;
 
 			//load 16 windows
 			q0 = vld1q_u8(&src[image.cols * (j - 1) + i - 1]);
@@ -30,7 +77,7 @@ void neon_median_filter(cv::Mat image)
 			q2 = vld1q_u8(&src[image.cols * (j - 1) + i + 1]);
 
 			q3 = vld1q_u8(&src[image.cols * j + i - 1]);
-			q4 = vld1q_u8(&src[image.cols * j + i]);
+            q4_prev = q4 = vld1q_u8(&src[image.cols * j + i]);
 			q5 = vld1q_u8(&src[image.cols * j + i + 1]);
 
 			q6 = vld1q_u8(&src[image.cols * (j + 1) + i - 1]);
@@ -73,8 +120,17 @@ void neon_median_filter(cv::Mat image)
 
 			vminmax_u8(q3, q4);
 
+            uint8x16_t diff = vabdq_s8(q4, q4_prev);
+            const uint8x16_t th = {30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30};
+            uint8x16_t mask = vcgeq_u8(th, diff);
+
+            q4 = vbslq_s8(mask, q4_prev, q4);
+
 			//q4 now - median values
 			vst1q_u8(&src[image.cols * j + i], q4);
 		}
 	}
+
+    QueryPerformanceCounter(&t2);
+    cout << "our neon time: \t" << t2.QuadPart - t1.QuadPart << endl;
 }
