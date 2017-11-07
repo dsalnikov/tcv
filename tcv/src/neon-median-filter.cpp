@@ -11,19 +11,9 @@
         (b) = vmaxq_u8(minmax_tmp, (b)); \
     } while (0)
 
-
-uint64 GetTimeMs64();
-using namespace std;
-
-#include <Windows.h>
-
 void our_filter(cv::Mat image)
 {
     int i, j;
-
-    LARGE_INTEGER t1, t2;           // ticks
-
-    QueryPerformanceCounter(&t1);
 
     uint8_t *src = (uint8_t *)(image.data);
 
@@ -43,25 +33,18 @@ void our_filter(cv::Mat image)
             window[7] = src[image.cols * (j + 1) + i];
             window[8] = src[image.cols * (j + 1) + i + 1];
 
-            sort(window, window + 8);
+            std::sort(window, window + 8);
 
             if (abs(window[4] - src[image.cols * j + i]) > 30)
                 src[image.cols * j + i] = window[4];
         }
     }
-
-    QueryPerformanceCounter(&t2);
-    cout << "our time: \t" << t2.QuadPart - t1.QuadPart << endl;
-
 }
 
-void neon_median_filter(cv::Mat image)
+
+void neon_our_filter(cv::Mat image)
 {
 	int i, j;
-
-    LARGE_INTEGER t1, t2;           // ticks
-
-    QueryPerformanceCounter(&t1);
 
 	uint8_t *src = (uint8_t *)(image.data);
 
@@ -130,7 +113,4 @@ void neon_median_filter(cv::Mat image)
 			vst1q_u8(&src[image.cols * j + i], q4);
 		}
 	}
-
-    QueryPerformanceCounter(&t2);
-    cout << "our neon time: \t" << t2.QuadPart - t1.QuadPart << endl;
 }
