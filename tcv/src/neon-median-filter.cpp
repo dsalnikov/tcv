@@ -103,11 +103,11 @@ void neon_our_filter(cv::Mat image)
 
 			vminmax_u8(q3, q4);
 
-            uint8x16_t diff = vabdq_s8(q4, q4_prev);
+            uint8x16_t diff = vabdq_u8(q4, q4_prev);
             const uint8x16_t th = {30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30, 30};
             uint8x16_t mask = vcgeq_u8(th, diff);
 
-            q4 = vbslq_s8(mask, q4_prev, q4);
+            q4 = vbslq_u8(mask, q4_prev, q4);
 
 			//q4 now - median values
 			vst1q_u8(&src[image.cols * j + i], q4);
