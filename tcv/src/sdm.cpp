@@ -1,6 +1,9 @@
 #include <opencv2/opencv.hpp>
 #include "GetTimeMs64.h"
 
+#include <iostream>
+using namespace std;
+
 int sdm_filter(cv::Mat image, uchar threshold) {
     uchar *p_img = (uchar *)(image.data);
 
