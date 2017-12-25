@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <opencv2/opencv.hpp>
 
 using namespace cv;
@@ -33,11 +34,13 @@ int main(int argc, char** argv )
 {
     Mat filt, filt2, original;
 
-    if ( argc != 2 )
+    if ( argc != 3 )
     {
-        printf("usage: DisplayImage.out <Image_Path>\n");
+        printf("usage: DisplayImage.out <Image_Path> count\n");
         return -1;
     }
+	
+    int count = atoi(argv[2]);
 
     Mat image;
     image = imread( argv[1], IMREAD_GRAYSCALE);
@@ -56,7 +59,7 @@ int main(int argc, char** argv )
     long long dur = measure(our_filter, filt);
     long long dur_neon = measure(neon_our_filter, filt2);
 
-    for (int i = 0; i < 100000; i++)
+    for (int i = 0; i < count; i++)
     {
         image.copyTo(filt);
         image.copyTo(filt2);
@@ -67,6 +70,7 @@ int main(int argc, char** argv )
         dur = (dur + t0)/2;
         dur_neon = (dur_neon + t1)/2;
 
+	cout << "[" << i << "] duration: " << dur << ", neon: " << dur_neon << ", speedup: " << (double)dur/dur_neon << endl;
     }
     //std::cout << "SDM PSNR: " << getPSNR(original, filt) << std::endl;
     //std::cout << "PSNR: " << getPSNR(original, filt2) << std::endl;
